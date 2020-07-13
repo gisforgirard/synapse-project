@@ -16,8 +16,8 @@
     "@commitlint/cli": "^9.1.1",
     "@commitlint/config-conventional": "^9.1.1",
     "husky": "^4.2.5",
-    "nunjucks": "^3.2.2",
-    "standard-version": "^8.0.0"
+    "nunjucks": "^3.2.1",
+    "standard-version": "^8.0.1"
   },
   "meta": {
     "title": "Synapse",
