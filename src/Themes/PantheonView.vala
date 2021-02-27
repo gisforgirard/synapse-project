@@ -28,6 +28,21 @@ namespace Synapse.Gui {
             install_style_property (description_max);
         }
 
+        construct {
+            size_allocate.connect ((allocation) => {
+                Gdk.Screen screen = this.get_screen () ?? Gdk.Screen.get_default ();
+                if (screen == null)
+                    return;
+                var rect = Utils.get_current_monitor_geometry (screen);
+
+                int width, height;
+                this.get_preferred_width (out width, null);
+                this.get_preferred_height (out height, null);
+                this.move (rect.x + (rect.width - width) / 2,
+                           rect.y + (rect.height - requested_height) / 2);
+            });
+        }
+
         public override void style_updated () {
             base.style_updated ();
 
@@ -48,13 +63,14 @@ namespace Synapse.Gui {
                                title_max, description_max);
         }
 
+        private int requested_height;
+
         private Gtk.Overlay overlay;
-        // private Gtk.Grid grid;
+
         private Gtk.Box container;
         private Gtk.Box action_box;
         private Gtk.Box target_box;
 
-        // private SmartLabel status;
         private SmartLabel search_label;
 
         private SpecificMatchList results_sources;
@@ -110,13 +126,18 @@ namespace Synapse.Gui {
             target_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             target_box.pack_start (results_targets, false);
             target_box.pack_start (create_separator (), false);
-            container.pack_start (action_box, false);
+            container.pack_start (target_box, false);
 
             overlay.add (container);
             overlay.show_all ();
 
             overlay.set_size_request (500, -1);
+
             this.add (overlay);
+
+            Gtk.Requisition size;
+            results_sources.get_preferred_size (out size, null);
+            requested_height = size.height * 2;
         }
 
         private Gtk.Widget create_separator () {
