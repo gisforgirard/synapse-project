@@ -103,10 +103,10 @@ namespace Synapse.Gui {
             }
         }
 
-        /* category_changed_event should be fired ie when user clicks on a category */
+        // `category_changed_event` should be fired when user clicks on a category
         public void category_changed_event (int category_index) {
             if (category_index < 0 || category_index >= category_config.categories.size) {
-                /* WTF! Invalid index, update view with the right category. */
+                // invalid index, update view with the correct category
                 view.update_selected_category ();
                 return;
             }
