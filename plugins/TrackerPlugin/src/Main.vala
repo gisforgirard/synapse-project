@@ -24,8 +24,7 @@ namespace Synapse {
                 icon_name: _icon_name,
                 thumbnail_path: _thumbnail_path,
                 uri: _uri,
-                mime_type: _mime_type
-                );
+                mime_type: _mime_type);
         }
 
     }
@@ -69,10 +68,10 @@ namespace Synapse {
         }
 
         private static int compute_relevancy (string uri, int base_relevancy) {
-            var rs = RelevancyService.get_default ();
-            float pop = rs.get_uri_popularity (uri);
+            var relevancy_service = RelevancyService.get_default ();
+            float popularity = relevancy_service.get_uri_popularity (uri);
 
-            return RelevancyService.compute_relevancy (base_relevancy, pop);
+            return RelevancyService.compute_relevancy (base_relevancy, popularity);
         }
 
         private async TrackerUriMatch? process_result (Tracker.Sparql.Cursor cursor) {
@@ -137,20 +136,30 @@ namespace Synapse {
             var results = new ResultSet ();
 
             debug ("constructing query...");
-            var query_string =
-                "SELECT tracker:coalesce (nie:url (?s), ?s) nie:title (?s) nie:mimeType (?s) ?type WHERE {  ?s fts:match \"%s\" ;  rdf:type ?type . } GROUP BY nie:url(?s) ORDER BY nie:url(?s) LIMIT %u"
-                 .printf (
-                    Tracker.Sparql.escape_string (query.query_string.strip ()), query.max_results);
+            var query_string = (
+                "SELECT " +
+                "tracker:coalesce" +
+                " (nie:url (?s), ?s) nie:title" +
+                " (?s) nie:mimeType" +
+                " (?s) ?type " +
+                "WHERE {" +
+                " ?s fts:match '%s' ; " +
+                " rdf:type ?type . " +
+                "} " +
+                "GROUP BY nie:url(?s) " +
+                "ORDER BY nie:url(?s) " +
+                "LIMIT %u")
+                                .printf (
+                Tracker.Sparql.escape_string (query.query_string.strip ()),
+                query.max_results);
 
             try {
                 debug ("querying...");
-                var cursor = yield connection.query_async (query_string, query.cancellable);
-
+                var cursor = connection.query (query_string, query.cancellable);
                 var next = false;
 
                 do {
                     int relevancy = MatchScore.AVERAGE;
-
                     debug ("getting result...");
                     try {
                         next = yield cursor.next_async (query.cancellable);
@@ -174,7 +183,6 @@ namespace Synapse {
                 cursor.close ();
             } catch (Error error) {
                 warning (error.message);
-                // warning (@"failed to execute \"$(statement.sparql)\"");
             }
 
             query.check_cancellable ();
@@ -195,12 +203,11 @@ public Synapse.PluginInfo register_plugin () {
         plugin_info = new Synapse.PluginInfo (
             typeof (Synapse.TrackerPlugin),
             "Tracker",
-            "",
+            "Search files indexed by Tracker",
             "",
             null,
             activatable,
-            ""
-            );
+            "Tracker is not available");
 
         loop.quit ();
     });
