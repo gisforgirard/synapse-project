@@ -47,16 +47,20 @@ namespace Synapse {
                          FileAttribute.STANDARD_IS_HIDDEN,
                          null);
 
-        private Tracker.Sparql.Connection connection;
+        private Tracker.Sparql.Connection? connection;
 
         public bool enabled { get; set; default = true; }
 
         public void activate () {
             try {
                 debug ("getting connection...");
-                connection = Tracker.Sparql.Connection.@get ();
-            } catch (Error error) {
-                warning (error.message);
+                connection = Tracker.Sparql.Connection.new (
+                    Tracker.Sparql.ConnectionFlags.READONLY,
+                    File.new_build_filename (
+                        Environment.get_user_cache_dir (), "tracker3", "files"),
+                    null);
+            } catch (Error err) {
+                warning (@"unable to get connection: $(err.message)");
             }
         }
 
@@ -166,6 +170,8 @@ namespace Synapse {
                         results.add (result, relevancy);
                     }
                 } while (next && !query.is_cancelled ());
+
+                cursor.close ();
             } catch (Error error) {
                 warning (error.message);
                 // warning (@"failed to execute \"$(statement.sparql)\"");

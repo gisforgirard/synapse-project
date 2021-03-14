@@ -11,7 +11,7 @@ shared_library(
     gio_unix_dep,
     glib_dep,
     gtk_dep,
-    dependency('tracker-sparql-2.0')
+    dependency('tracker-sparql-3.0')
   ],
   include_directories: [libsynapse_include_dir],
   install: true,
