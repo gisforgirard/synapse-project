@@ -19,17 +19,18 @@
  */
 
 namespace Synapse {
-    public class UILauncher : GLib.Object {
+    public class Application : Gtk.Application {
+        /*
+         * determine whether to show UI upon activation
+         */
         private static bool is_startup = false;
-        const OptionEntry[] options = {
-            {
-                "startup", 's', 0, OptionArg.NONE,
-                out is_startup, "Startup mode (hide the UI until activated).", null
-            },
-            {
-                null
-            }
+
+        /* *INDENT-OFF* */
+        private const OptionEntry[] ENTRIES = {
+            { "startup", 's', OptionFlags.NONE, OptionArg.NONE, ref is_startup, "Startup mode (hide the UI until activated).", null },
+            { null }
         };
+        /* *INDENT-ON* */
 
         private Gui.SettingsWindow settings;
         private DataSink data_sink;
@@ -45,55 +46,123 @@ namespace Synapse {
 #endif
         private Gui.IController controller;
 
-        public UILauncher () {
-            config = ConfigService.get_default ();
-            data_sink = new DataSink ();
-            registry = PluginRegistry.get_default ();
+        static void handle_shortcut (string key, void * data) {
+            ((Application) data).show_ui ();
+        }
 
-            key_combo_config = (Gui.KeyComboConfig)config.bind_config ("ui", "shortcuts", typeof (Gui.KeyComboConfig));
-            category_config = (Gui.CategoryConfig)config.get_config ("ui", "categories", typeof (Gui.CategoryConfig));
+        public Application () {
+            Object (
+                application_id: Config.APP_ID,
+                flags : ApplicationFlags.HANDLES_COMMAND_LINE);
+        }
 
-            key_combo_config.update_bindings ();
-            register_plugins ();
+        public override void activate () {
+            if (controller == null) {
+                config = ConfigService.get_default ();
+                data_sink = new DataSink ();
+                registry = PluginRegistry.get_default ();
 
-            settings = new Gui.SettingsWindow (data_sink, key_combo_config);
-            settings.keybinding_changed.connect (this.change_keyboard_shortcut);
+                key_combo_config = (Gui.KeyComboConfig)config.bind_config ("ui", "shortcuts", typeof (Gui.KeyComboConfig));
+                category_config = (Gui.CategoryConfig)config.get_config ("ui", "categories", typeof (Gui.CategoryConfig));
 
-            Keybinder.init ();
-            bind_keyboard_shortcut ();
+                key_combo_config.update_bindings ();
+                register_plugins ();
 
-            controller = GLib.Object.new (typeof (Gui.Controller),
-                                          "data-sink", data_sink,
-                                          "key-combo-config", key_combo_config,
-                                          "category-config", category_config) as Gui.IController;
+                settings = new Gui.SettingsWindow (data_sink, key_combo_config);
+                settings.keybinding_changed.connect (this.change_keyboard_shortcut);
+                settings.theme_selected.connect (init_ui);
 
-            controller.show_settings_requested.connect (() => {
-                settings.show ();
-                uint32 timestamp = Gtk.get_current_event_time ();
-                /* Make sure that the settings window is showed */
-                settings.deiconify ();
-                settings.present_with_time (timestamp);
-                settings.get_window ().raise ();
-                settings.get_window ().focus (timestamp);
-                controller.summon_or_vanish ();
-            });
-            controller.quit.connect (this.quit);
+                Keybinder.init ();
+                bind_keyboard_shortcut ();
 
-            init_ui (settings.get_current_theme ());
+                controller = GLib.Object.new (typeof (Gui.Controller),
+                                              "data-sink", data_sink,
+                                              "key-combo-config", key_combo_config,
+                                              "category-config", category_config) as Gui.IController;
 
-            if (!is_startup)
-                controller.summon_or_vanish ();
+                controller.show_settings_requested.connect (() => {
+                    settings.show ();
+                    uint32 timestamp = Gtk.get_current_event_time ();
+                    /* Make sure that the settings window is showed */
+                    settings.deiconify ();
+                    settings.present_with_time (timestamp);
+                    settings.get_window ().raise ();
+                    settings.get_window ().focus (timestamp);
+                    controller.summon_or_vanish ();
+                });
+                controller.quit.connect (this.quit);
 
-            settings.theme_selected.connect (init_ui);
-            init_indicator ();
+                init_ui (settings.get_current_theme ());
+                init_indicator ();
+
+                if (!is_startup)
+                    controller.summon_or_vanish ();
+
+                Environment.unset_variable ("DESKTOP_AUTOSTART_ID");
+                Gdk.Window.process_all_updates ();
+                Gtk.main ();
+            }
+            if (is_startup)
+                return;
+
+            show_ui ();
+        }
+
+        public override int command_line (ApplicationCommandLine command_line) {
+            hold ();
+            var result = _command_line (command_line);
+            release ();
+
+            return result;
+        }
+
+        private int _command_line (ApplicationCommandLine command_line) {
+            string[] args = command_line.get_arguments ();
+            string *[] _args = new string[args.length];
+
+            for (int i = 0 ; i < args.length ; i++)
+                _args[i] = args[i];
+
+            try {
+                var context = new OptionContext (null);
+
+                context.add_main_entries (ENTRIES, null);
+                context.add_group (Gtk.get_option_group (true));
+
+                unowned string[] tmp = _args;
+
+                context.parse (ref tmp);
+            } catch (Error err) {
+                warning ("%s", err.message);
+                return 1;
+            }
+
+            activate ();
+
+            return 0;
+        }
+
+        private void register_plugins () {
+            foreach (var plugin_info in registry.get_plugins ()) {
+                data_sink.register_static_plugin (plugin_info.plugin_type);
+            }
+        }
+
+        private void bind_keyboard_shortcut () {
+            current_shortcut = key_combo_config.activate;
+            message ("Binding activation to %s", current_shortcut);
+            settings.set_keybinding (current_shortcut, false);
+            Keybinder.bind (current_shortcut, handle_shortcut, this);
+        }
+
+        private void change_keyboard_shortcut (string key) {
+            Keybinder.unbind (current_shortcut, handle_shortcut);
+            current_shortcut = key;
+            Keybinder.bind (current_shortcut, handle_shortcut, this);
         }
 
         private void init_ui (Type t) {
             controller.set_view (t);
-        }
-
-        ~UILauncher () {
-            config.save ();
         }
 
         private void init_indicator () {
@@ -152,122 +221,30 @@ namespace Synapse {
 #endif
         }
 
-        private void register_plugins () {
-            foreach (var plugin_info in registry.get_plugins ()) {
-                data_sink.register_static_plugin (plugin_info.plugin_type);
-            }
-        }
-
-        protected void show_ui () {
+        private void show_ui () {
             if (this.controller == null)
                 return;
 
             this.controller.summon_or_vanish ();
         }
 
-        private void bind_keyboard_shortcut () {
-            current_shortcut = key_combo_config.activate;
-            message ("Binding activation to %s", current_shortcut);
-            settings.set_keybinding (current_shortcut, false);
-            Keybinder.bind (current_shortcut, handle_shortcut, this);
-        }
-
-        static void handle_shortcut (string key, void * data) {
-            ((UILauncher) data).show_ui ();
-        }
-
-        private void change_keyboard_shortcut (string key) {
-            Keybinder.unbind (current_shortcut, handle_shortcut);
-            current_shortcut = key;
-            Keybinder.bind (current_shortcut, handle_shortcut, this);
-        }
-
-        public void run () {
-            Environment.unset_variable ("DESKTOP_AUTOSTART_ID");
-            Gdk.Window.process_all_updates ();
-            Gtk.main ();
-        }
-
-        public void quit () {
-            Gtk.main_quit ();
-        }
-
-        private static void load_custom_style () {
-            string custom_gtkrc =
-                Path.build_filename (Environment.get_user_config_dir (),
-                                     "synapse",
-                                     "gtkrc");
-
-            if (FileUtils.test (custom_gtkrc, FileTest.EXISTS)) {
-                Gtk.rc_add_default_file (custom_gtkrc);
-                Gtk.rc_reparse_all ();
-            }
-        }
-
-        private static void ibus_fix () {
-            /* try to fix IBUS input method adding synapse to no-snooper-apps */
-            string ibus_no_snooper = GLib.Environment.get_variable ("IBUS_NO_SNOOPER_APPS");
-
-            if (ibus_no_snooper == null || ibus_no_snooper.length == 0) {
-                GLib.Environment.set_variable ("IBUS_NO_SNOOPER_APPS", "synapse", true);
-                return;
-            }
-
-            if ("synapse" in ibus_no_snooper)
-                return;
-
-            /* add synapse */
-            if (!ibus_no_snooper.has_suffix (","))
-                ibus_no_snooper = ibus_no_snooper + ",";
-
-            ibus_no_snooper = ibus_no_snooper + "synapse";
-            GLib.Environment.set_variable ("IBUS_NO_SNOOPER_APPS", ibus_no_snooper, true);
-        }
-
-        public static int main (string[] argv) {
-            Utils.Logger.initialize ();
-            message ("Starting up...");
-            ibus_fix ();
-
-            Intl.setlocale (LocaleCategory.ALL, "");
-            Intl.bindtextdomain (Config.GETTEXT_PACKAGE,
-                                 Path.build_filename (Config.DATA_DIR, "locale"));
-            Intl.bind_textdomain_codeset (Config.GETTEXT_PACKAGE, "UTF-8");
-            Intl.textdomain (Config.GETTEXT_PACKAGE);
-
-            var context = new OptionContext (@"- $(Config.APP_NAME)");
-
-            context.add_main_entries (options, null);
-            context.add_group (Gtk.get_option_group (false));
-
-            try {
-                context.parse (ref argv);
-
-                /* Custom style loading must be done before Gtk.init */
-                load_custom_style ();
-                Gtk.init (ref argv);
-                Notify.init (Config.APP_ID);
-                Environment.set_application_name (Config.APP_NAME);
-
-                var app = new GLib.Application (
-                    Config.APP_ID, ApplicationFlags.FLAGS_NONE);
-                if (app.get_is_remote ()) {
-                    message ("Synapse is already running, activating...");
-                    app.activate ();
-                } else {
-                    var launcher = new UILauncher ();
-                    app.activate.connect (() => {
-                        launcher.show_ui ();
-                    });
-
-                    launcher.run ();
-                }
-            } catch (Error err) {
-                warning ("%s", err.message);
-            }
-
-            return 0;
-        }
-
     }
+}
+
+public static int main (string[] argv) {
+    Synapse.Utils.Logger.initialize ();
+
+    message ("starting up...");
+    Intl.setlocale (LocaleCategory.ALL, "");
+    Intl.bindtextdomain (Config.GETTEXT_PACKAGE,
+                         Path.build_filename (Config.DATA_DIR, "locale"));
+    Intl.bind_textdomain_codeset (Config.GETTEXT_PACKAGE, "UTF-8");
+    Intl.textdomain (Config.GETTEXT_PACKAGE);
+
+    Environment.set_application_name (Config.APP_NAME);
+    Notify.init (Config.APP_ID);
+
+    var app = new Synapse.Application ();
+
+    return app.run (argv);
 }
