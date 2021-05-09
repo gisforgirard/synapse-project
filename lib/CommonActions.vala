@@ -175,7 +175,16 @@ namespace Synapse {
                 unowned UriMatch? uri_match = match as UriMatch;
 
                 if (uri_match != null) {
-                    Utils.open_uri (uri_match.uri);
+                    // TODO: make this safer
+                    if (uri_match.uri.has_suffix (".textbundle")) {
+                        var app_info = new DesktopAppInfo ("com.paysonwallach.tbedit.desktop");
+                        var uris = new List<string> ();
+
+                        uris.append (uri_match.uri);
+                        app_info.launch_uris (uris, null);
+                    } else {
+                        Utils.open_uri (uri_match.uri);
+                    }
                 } else if (file_path.match (match.title)) {
                     File f;
 
