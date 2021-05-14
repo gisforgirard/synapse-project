@@ -46,9 +46,18 @@ namespace Synapse {
                          FileAttribute.STANDARD_IS_HIDDEN,
                          null);
 
+        private Regex words;
         private Tracker.Sparql.Connection? connection;
 
         public bool enabled { get; set; default = true; }
+
+        construct {
+            try {
+                words = new Regex ("\b");
+            } catch (Error err) {
+                warning (err.message);
+            }
+        }
 
         public void activate () {
             try {
@@ -81,6 +90,7 @@ namespace Synapse {
             debug ("processing result...");
             string title = cursor.get_string (MatchFields.TITLE);
             string mime_type = cursor.get_string (MatchFields.MIME_TYPE);
+            // TODO: throws a fatal error if the split does not yield an array of at least 2 elements
             string description = uri.split ("://")[1].replace ("%20", " ");
             string icon_name = null;
             string thumbnail_path = null;
@@ -134,55 +144,63 @@ namespace Synapse {
                 return null;
 
             var results = new ResultSet ();
+            var queries = new Gee.HashMap<string, MatchScore> ();
 
-            debug ("constructing query...");
-            var query_string = (
-                "SELECT " +
-                "tracker:coalesce" +
-                " (nie:url (?s), ?s) nie:title" +
-                " (?s) nie:mimeType" +
-                " (?s) ?type " +
-                "WHERE {" +
-                " ?s fts:match '%s' ; " +
-                " rdf:type ?type . " +
-                "} " +
-                "GROUP BY nie:url(?s) " +
-                "ORDER BY nie:url(?s) " +
-                "LIMIT %u")
-                                .printf (
-                Tracker.Sparql.escape_string (query.query_string.strip ()),
-                query.max_results);
+            var or_query = string.joinv (" OR ", words.split (query.query_string));
 
-            try {
-                debug ("querying...");
-                var cursor = connection.query (query_string, query.cancellable);
-                var next = false;
+            queries[query.query_string] = MatchScore.EXCELLENT;
+            queries[or_query] = MatchScore.BELOW_AVERAGE;
 
-                do {
-                    int relevancy = MatchScore.AVERAGE;
-                    debug ("getting result...");
-                    try {
-                        next = yield cursor.next_async (query.cancellable);
+            foreach (var q in queries) {
+                debug ("constructing query...");
+                var query_string = (
+                        "SELECT " +
+                        "tracker:coalesce" +
+                        " (nie:url (?s), ?s) nie:title" +
+                        " (?s) nie:mimeType" +
+                        " (?s) ?type " +
+                        "WHERE {" +
+                        " ?s fts:match '%s' ; " +
+                        " rdf:type ?type . " +
+                        "} " +
+                        "GROUP BY nie:url(?s) " +
+                        "ORDER BY nie:url(?s) " +
+                        "LIMIT %u")
+                    .printf (
+                        Tracker.Sparql.escape_string (q.key.strip ()),
+                        query.max_results);
 
-                    } catch (Error err) {
-                        warning (err.message);
-                    }
+                try {
+                    debug ("querying...");
+                    var cursor = connection.query (query_string, query.cancellable);
+                    var next = false;
 
-                    debug ("processing result...");
-                    var result = yield process_result (cursor);
+                    do {
+                        int relevancy = q.value;
+                        debug ("getting result...");
+                        try {
+                            next = yield cursor.next_async (query.cancellable);
 
-                    if (result != null) {
-                        if (result.uri != null)
-                            relevancy = compute_relevancy (result.uri, MatchScore.AVERAGE);
+                        } catch (Error err) {
+                            warning (err.message);
+                        }
 
-                        debug (@"adding result with relevancy $relevancy...");
-                        results.add (result, relevancy);
-                    }
-                } while (next && !query.is_cancelled ());
+                        debug ("processing result...");
+                        var result = yield process_result (cursor);
 
-                cursor.close ();
-            } catch (Error error) {
-                warning (error.message);
+                        if (result != null) {
+                            if (result.uri != null)
+                                relevancy = compute_relevancy (result.uri, MatchScore.AVERAGE);
+
+                            debug (@"adding result with relevancy $relevancy...");
+                            results.add (result, relevancy);
+                        }
+                    } while (next && !query.is_cancelled ());
+
+                    cursor.close ();
+                } catch (Error error) {
+                    warning (error.message);
+                }
             }
 
             query.check_cancellable ();
