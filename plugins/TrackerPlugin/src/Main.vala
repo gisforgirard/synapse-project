@@ -103,9 +103,13 @@ namespace Synapse {
                 try {
                     var file_info = yield file.query_info_async (interesting_attributes, 0, 0, null);
 
-                    icon_name = file_info
-                                 .get_icon ()
-                                 .to_string ();
+                    debug (file.get_basename ());
+                    if (file.get_basename ().has_suffix (".textbundle"))
+                        icon_name = "com.paysonwallach.tbedit";
+                    else
+                        icon_name = file_info
+                                     .get_icon ()
+                                     .to_string ();
 
                     if (file_info.has_attribute (FileAttribute.THUMBNAIL_PATH))
                         thumbnail_path = file_info.get_attribute_byte_string (FileAttribute.THUMBNAIL_PATH);
