@@ -1,4 +1,4 @@
-synapse_ui_sources = [
+synapse_ui_sources = files(
   'Category.vala',
   'Controller.vala',
   'DataSink.vala',
@@ -13,7 +13,7 @@ synapse_ui_sources = [
   'Settings.vala',
   'Widgets.vala',
   'Utils.vala'
-]
+)
 
 subdir('TileView')
 subdir('Themes')
