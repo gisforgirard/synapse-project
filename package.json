@@ -13,11 +13,11 @@
     "url": "https://github.com/paysonwallach/synapse"
   },
   "license": "LGPL-2.1",
-  "dependencies": {
-    "@commitlint/cli": "^13.0.0",
-    "@commitlint/config-conventional": "^13.0.0",
+  "devDependencies": {
+    "@commitlint/cli": "^12.1.4",
+    "@commitlint/config-conventional": "^12.1.4",
     "husky": "^6.0.0",
-    "nunjucks": "^3.2.3",
+    "scrivano": "^0.1.0",
     "standard-version": "^9.3.0"
   },
   "meta": {
