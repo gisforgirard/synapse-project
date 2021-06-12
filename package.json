@@ -5,8 +5,9 @@
   "description": "A semantic application launcher and desktop search application for GNOME.",
   "scripts": {
     "format": "find . -name '*.vala' -exec uncrustify -c uncrustify.cfg --replace {} \\;",
-    "prerelease": "node scripts/build.js",
-    "release": "standard-version"
+    "prerelease": "scrivano",
+    "release": "standard-version",
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",
@@ -36,11 +37,6 @@
   "standard-version": {
     "scripts": {
       "precommit": "npm run prerelease"
-    }
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run format"
     }
   }
 }
