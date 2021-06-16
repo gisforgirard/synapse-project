@@ -17,7 +17,6 @@
  *
  * Authored by Michal Hruby <michal.mhr@gmail.com>
  *             Alberto Aldegheri <albyrock87+dev@gmail.com>
- *
  */
 
 namespace Synapse.Gui {
