@@ -1,0 +1,15 @@
+@prefix dsc: <http://tracker.api.gnome.org/ontology/v3/dsc#> .
+
+<virtual-ontology-uri:33-nfo.ontology> a dsc:Ontology ;
+  dsc:title "Synapse Query History Ontology (SQH)" ;
+  dsc:description "An ontology describing a user's query history" ;
+
+  dsc:gitlog "https://github.com/paysonwallach/synapse/tree/data/history.description";
+
+  dsc:author "Payson Wallach, &lt;payson@paysonwallach.com&gt;" ;
+
+  dsc:localPrefix "sqh" ;
+  dsc:baseUrl "http://tracker.api.gnome.org/ontology/v3/nfo#" ;
+  dsc:relativePath "./history.ontology" ;
+
+  dsc:copyright "&copy; 2021 Payson Wallach, &lt;payson@paysonwallach.com&gt;" .

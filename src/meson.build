@@ -15,8 +15,12 @@ synapse_ui_sources = files(
   'Utils.vala'
 )
 
-subdir('TileView')
+hat_trie_subproject = subproject('hat-trie')
+hat_trie_dep = hat_trie_subproject.get_variable('hat_trie_dep')
+
+subdir('QueryHistory')
 subdir('Themes')
+subdir('TileView')
 
 synapse_ui_dependencies = [
   gdk_dep,
@@ -26,9 +30,14 @@ synapse_ui_dependencies = [
   gmodule_dep,
   gtk_dep,
   keybinder_dep,
-  notify_dep,
   m_dep,
+  notify_dep,
   synapse_dep,
+  query_history_dep,
+  vala.find_library(
+    'QueryHistory',
+    dirs: query_history_vapi_dir
+  ),
   config_dep
 ]
 

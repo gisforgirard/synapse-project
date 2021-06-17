@@ -35,6 +35,7 @@ namespace Synapse.Gui {
 
         protected Model model;
         protected IView view = null;
+        protected QueryHistory? query_history = null;
 
         public void set_view (Type view_type) {
             if (!view_type.is_a (typeof (IView)))
@@ -190,6 +191,12 @@ namespace Synapse.Gui {
         construct {
             /* Initialize model */
             this.model = new Model ();
+            try {
+                this.query_history = new QueryHistory (
+                    Path.build_filename (
+                        Environment.get_user_data_dir (),
+                        Config.APP_ID, "queryHistory"));
+            } catch (Error e) {}
             this.init_search ();
 
             /* Typing handle */
@@ -227,6 +234,11 @@ namespace Synapse.Gui {
             if ((action.needs_target () && target == null) ||
                 (!action.needs_target () && target != null))
                 return; // can't do that
+
+            if (query_history != null)
+                query_history.add_query (
+                    model.query[model.searching_for],
+                    model.focus[model.searching_for].value.hash ().to_string ());
 
             Timeout.add (20, () => {
                 action.execute_with_target (source, target);
@@ -643,7 +655,7 @@ namespace Synapse.Gui {
             }
             /* String didn't match, get partial results */
             model.focus[what].key = 0;
-            model.results[what] = rs.get_sorted_list ();
+            model.results[what] = sort_for_history (rs.get_sorted_list ());
 
             if (model.results[what].size > 0)
                 model.focus[what].value = model.results[what].first ();
@@ -663,6 +675,19 @@ namespace Synapse.Gui {
             }
         }
 
+        private Gee.List<Match> sort_for_history (Gee.List<Match> matches) {
+            if (query_history == null)
+                return matches;
+
+            var history = query_history.history_for_prefix (model.query[model.searching_for]);
+
+            matches.sort ((a, b) => {
+                return history[b.hash ().to_string ()] - history[a.hash ().to_string ()];
+            });
+
+            return matches;
+        }
+
         private void search_ready (SearchingFor what, Gee.List<Match> res) {
             // message ("ready_for_matches: %u", what);
             if (!partial_result_sent[what]) {
@@ -671,7 +696,7 @@ namespace Synapse.Gui {
                 model.focus[what].key = 0;
             }
 
-            model.results[what] = res;
+            model.results[what] = sort_for_history (res);
 
             /* Search not cancelled and ready */
             if (tid[what] != 0) {

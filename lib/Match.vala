@@ -37,7 +37,7 @@ namespace Synapse {
         HIGHEST = 100000
     }
 
-    public abstract class Match : Object {
+    public abstract class Match : Object, Gee.Hashable<Match> {
         public string title { get; construct set; }
         public string description { get; construct set; }
         public string icon_name { get; construct set; }
@@ -63,6 +63,25 @@ namespace Synapse {
 
         public virtual QueryFlags target_flags () {
             return QueryFlags.ALL;
+        }
+
+        public bool equal_to (Match match) {
+            if (this == match)
+                return true;
+
+            return (
+                this.title == match.title &&
+                this.description == match.description &&
+                this.icon_name == match.icon_name &&
+                this.has_thumbnail = match.has_thumbnail &&
+                this.thumbnail_path == match.thumbnail_path
+            );
+        }
+
+        public uint hash () {
+            return "%s%s%s%b%s".printf(
+                title, description, icon_name, has_thumbnail, thumbnail_path ?? ""
+            ).hash();
         }
     }
 
