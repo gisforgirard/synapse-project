@@ -1,7 +1,7 @@
 project(
   'com.paysonwallach.synapse',
+  'c', 'cpp',
   'vala',
-  'c',
   license: ['GPL2', 'LGPL2.1'],
   meson_version: '>=0.50.0',
   version: '0.4.7'
@@ -39,7 +39,14 @@ notify_dep = dependency('libnotify')
 thread_dep = dependency('gthread-2.0')
 m_dep = cc.find_library ('m', required : false)
 
-# configuration file
+vala_unit_proj = subproject(
+  'vala-unit',
+  default_options: [
+    'install=false'
+  ]
+)
+vala_unit_dep = vala_unit_proj.get_variable('vala_unit_dep')
+
 conf = configuration_data()
 conf.set_quoted('DATA_DIR', data_dir)
 conf.set_quoted('PLUGINS_DIR', plugins_dir)
@@ -97,3 +104,6 @@ subdir('po')
 subdir('lib')
 subdir('src')
 subdir('plugins')
+if not get_option('buildtype').startswith('release')
+  subdir('test')
+endif

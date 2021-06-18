@@ -307,6 +307,8 @@ namespace Synapse {
         [Signal (detailed = true)]
         public signal void search_done (ResultSet rs, uint query_id);
 
+        private Gee.HashMap<string, ResultSet> results_sets = new Gee.HashMap<string, ResultSet> ();
+        private RelevancyBackendAlpha relevancy_backend = new RelevancyBackendAlpha ();
         public async Gee.List<Match> search (string query,
                                              QueryFlags flags,
                                              ResultSet? dest_result_set,
@@ -349,9 +351,21 @@ namespace Synapse {
 
                     try {
                         var results = plugin.search.end (res);
+                        var plugin_identifier = plugin.get_type ().name ();
 
-                        this.search_done[plugin.get_type ().name ()](results, q.query_id);
-                        current_result_set.add_all (results);
+                        this.search_done[plugin_identifier](results, q.query_id);
+                        // current_result_set.add_all (results);
+                        var results_set = new Gee.ArrayList<ResultSet> ();
+                        results_sets[plugin_identifier] = results;
+                        foreach (var set in results_sets.values) {
+                            if (set != null && set.size > 0)
+                                results_set.add (set);
+                        }
+                        // if (current_result_set.size > 0)
+                        //     results_set.add (current_result_set);
+                        // if (results.size > 0)
+                        //     results_set.add (results);
+                        current_result_set = relevancy_backend.merge_results (results_set, q.query_string);
                     } catch (SearchError err) {
                         if (!(err is SearchError.SEARCH_CANCELLED))
                             warning ("%s returned error: %s",
@@ -397,6 +411,10 @@ namespace Synapse {
 
             return current_result_set.get_sorted_list ();
         }
+
+        // protected Gee.List<Match> get_sorted_list () {
+        //
+        // }
 
         protected Gee.List<Match> find_actions_for_unknown_match (Match match,
                                                                   QueryFlags flags) {

@@ -7,6 +7,7 @@ libsynapse_sources = files(
   'Plugin.vala',
   'Query.vala',
   'RelevancyService.vala',
+  'RelevancyBackendAlpha.vala',
   'ResultSet.vala',
   'SearchProvider.vala',
   'Utils.vala',
