@@ -20,7 +20,7 @@ libsynapse_dependencies = [
   gio_unix_dep,
   glib_dep,
   glib_json_dep,
-  gtk_dep,
+  gtk_dep
 ]
 libsynapse_requires = libsynapse_dependencies
 
@@ -42,23 +42,23 @@ libsynapse_lib = shared_library(
   libsynapse_sources,
   dependencies: libsynapse_dependencies,
   vala_header: 'synapse.h',
-  soversion: '0',
+  version: meson.project_version(),
   install: true,
   install_dir: [
     true,
-    join_paths(get_option('includedir'), 'synapse'),
+    join_paths(get_option('includedir'), 'synapse-1.0'),
     true
   ],
 )
 
 pkg.generate(
+  libsynapse_lib,
   filebase: 'synapse-1.0',
   name: 'Synapse',
   description: 'Core library for Synapse and plugins',
   version: meson.project_version(),
   subdirs: 'synapse-1.0',
   variables: ['pluginsdir=${plugins_dir}'],
-  libraries: libsynapse_lib,
   requires: libsynapse_requires
 )
 
