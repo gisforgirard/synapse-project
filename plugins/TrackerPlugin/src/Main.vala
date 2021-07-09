@@ -158,19 +158,15 @@ namespace Synapse {
             foreach (var q in queries) {
                 debug ("constructing query...");
                 var query_string = (
-                        "SELECT " +
-                        "tracker:coalesce" +
-                        " (nie:url (?s), ?s) nie:title" +
-                        " (?s) nie:mimeType" +
-                        " (?s) ?type " +
-                        "WHERE {" +
-                        " ?s fts:match '%s' ; " +
-                        " rdf:type ?type . " +
-                        "} " +
-                        "GROUP BY nie:url(?s) " +
-                        "ORDER BY nie:url(?s) " +
-                        "LIMIT %u")
-                    .printf (
+                    "SELECT ?uri ?title ?mimeType " +
+                    "WHERE {" +
+                    " ?s fts:match '%s' ;" +
+                    "    nie:title ?title ;" +
+                    "    nie:mimeType ?mimeType ;" +
+                    "    nie:isStoredAs ?dataObject ." +
+                    " ?dataObject nie:url ?uri" +
+                    "} " +
+                    "LIMIT %u").printf (
                         Tracker.Sparql.escape_string (q.key.strip ()),
                         query.max_results);
 
