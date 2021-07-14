@@ -122,30 +122,25 @@ namespace Synapse {
             return new TrackerUriMatch (title, description, icon_name, thumbnail_path, uri, mime_type);
         }
 
-        uint timeout = 0U;
+        private bool search_in_progress = false;
         public async ResultSet? search (Query query) throws SearchError {
             if (query.query_string.length < 2)
                 return null;
 
-            var call_now = timeout != 0U;
+            while (search_in_progress) {
+                ulong sig_id;
+                sig_id = this.notify["search-in-progress"].connect (() => {
+                    if (search_in_progress)
+                        return;
+                    search.callback ();
+                });
+                yield;
 
-            if (timeout != 0U)
-                Source.remove (timeout);
+                SignalHandler.disconnect (this, sig_id);
+                query.check_cancellable ();
+            }
 
-            timeout = Timeout.add (
-                200,
-                () => {
-                if (timeout != 0U) {
-                    Source.remove (timeout);
-                    timeout = 0U;
-
-                    return Source.REMOVE;
-                }
-                return Source.CONTINUE;
-            });
-
-            if (!call_now)
-                return null;
+            search_in_progress = true;
 
             var results = new ResultSet ();
             var queries = new Gee.HashMap<string, MatchScore> ();
@@ -202,6 +197,8 @@ namespace Synapse {
                     warning (error.message);
                 }
             }
+
+            search_in_progress = false;
 
             query.check_cancellable ();
 
