@@ -4,5 +4,5 @@ vala_unit_base_deps = [
   gtk_dep
 ]
 
-subdir('lib')
+#subdir('lib')
 subdir('synapse')
